@@ -1,0 +1,1545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>API RP 985 Calculator & Reverse Evolutionary Optimizer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    .max-container { max-width: 820px; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans min-h-screen p-3 md:p-6 flex flex-col items-center">
+  <div class="w-full max-container space-y-4">
+
+    <!-- Header -->
+    <header class="pt-1">
+      <h1 class="text-2xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+        🔥 API RP 985 Refractory Thermal Suite
+      </h1>
+      <p class="text-xs md:text-sm text-slate-500 font-medium">
+        Steady-state heat loss calculator & evolutionary reverse lining designer
+      </p>
+    </header>
+
+    <!-- Unit Toggle Switch (US <-> SI) -->
+    <div class="flex items-center justify-between bg-white border border-slate-200/80 rounded-2xl px-4 py-2.5 shadow-xs">
+      <label for="siToggle" class="text-xs md:text-sm font-semibold text-slate-700 cursor-pointer select-none">
+        SI units (m · mm · °C · W) <span class="text-slate-400 font-normal ml-1">— off = US units (ft · in · °F · Btu)</span>
+      </label>
+      <label class="relative inline-flex items-center cursor-pointer shrink-0 ml-3">
+        <input type="checkbox" id="siToggle" class="sr-only peer">
+        <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-600"></div>
+      </label>
+    </div>
+
+    <!-- Top-Level Mode Switcher -->
+    <div class="grid grid-cols-2 bg-slate-200/80 p-1 rounded-2xl text-xs md:text-sm font-bold">
+      <button id="modeBtnFwd" onclick="switchMode('fwd')" class="py-2.5 px-3 rounded-xl bg-white text-slate-900 shadow-xs transition-all">
+        🧮 Forward Calculator
+      </button>
+      <button id="modeBtnRev" onclick="switchMode('rev')" class="py-2.5 px-3 rounded-xl text-slate-600 hover:text-slate-900 transition-all">
+        🎯 Reverse Designer (Optimizer)
+      </button>
+    </div>
+
+    <!-- ==========================================
+         MODE 1: FORWARD CALCULATOR VIEW
+         ========================================== -->
+    <div id="viewFwd" class="space-y-4">
+      <div id="errorBox" class="hidden bg-red-50 border border-red-200 text-red-700 px-3.5 py-2.5 rounded-xl text-xs font-semibold"></div>
+
+      <!-- Hero Card -->
+      <div id="heroCard" class="rounded-2xl p-5 text-white shadow-sm transition-all duration-300">
+        <div class="text-[0.72rem] tracking-wider uppercase opacity-90 font-bold">Predicted Shell Temperature</div>
+        <div id="heroTemp" class="text-5xl font-black leading-tight tracking-tight mt-0.5">-- °F</div>
+        <div id="heroSub" class="text-xs opacity-95 mt-1 font-medium">--</div>
+      </div>
+
+      <!-- 2x2 Metric Grid -->
+      <div class="grid grid-cols-2 gap-2.5">
+        <div class="bg-white border border-slate-200/80 rounded-2xl p-3 shadow-xs">
+          <div class="text-[0.68rem] font-bold text-slate-400 uppercase tracking-wide">Heat Loss</div>
+          <div id="kpiQ" class="text-xl font-extrabold text-slate-800 mt-0.5">--</div>
+          <div id="kpiQUnit" class="text-[0.68rem] text-slate-400">Btu/(h·ft²)</div>
+        </div>
+        <div class="bg-white border border-slate-200/80 rounded-2xl p-3 shadow-xs">
+          <div id="kpi3Title" class="text-[0.68rem] font-bold text-slate-400 uppercase tracking-wide">Lining Thickness</div>
+          <div id="kpi3Val" class="text-xl font-extrabold text-slate-800 mt-0.5">--</div>
+          <div id="kpi3Unit" class="text-[0.68rem] text-slate-400">inches</div>
+        </div>
+        <div class="bg-white border border-slate-200/80 rounded-2xl p-3 shadow-xs">
+          <div class="text-[0.68rem] font-bold text-slate-400 uppercase tracking-wide">Outer Film h</div>
+          <div id="kpiH" class="text-xl font-extrabold text-slate-800 mt-0.5">--</div>
+          <div id="kpiHUnit" class="text-[0.68rem] text-slate-400">Btu/(h·ft²·°F)</div>
+        </div>
+        <div class="bg-white border border-slate-200/80 rounded-2xl p-3 shadow-xs">
+          <div class="text-[0.68rem] font-bold text-slate-400 uppercase tracking-wide">Radiation / Convection</div>
+          <div id="kpiHrHc" class="text-xl font-extrabold text-slate-800 mt-0.5">-- / --</div>
+          <div id="kpiHrHcUnit" class="text-[0.68rem] text-slate-400">Btu/(h·ft²·°F)</div>
+        </div>
+      </div>
+
+      <!-- Temperature Profile Chart -->
+      <div class="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs">
+        <h3 class="text-sm font-bold text-slate-800 mb-3">Temperature through the lining</h3>
+        <div class="h-64 relative w-full">
+          <canvas id="tempChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Layers List -->
+      <div>
+        <h3 class="text-sm font-bold text-slate-800 mb-2">Layers</h3>
+        <div id="layerCards" class="space-y-2"></div>
+      </div>
+
+      <!-- Temperature Drop Distribution Bar -->
+      <div class="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs">
+        <h3 class="text-sm font-bold text-slate-800 mb-2">Where the temperature drop happens</h3>
+        <div id="stackBar" class="flex h-7 rounded-lg overflow-hidden my-2 border border-slate-200/60"></div>
+        <div id="stackLegend" class="flex flex-wrap gap-x-3.5 gap-y-1.5 text-[0.72rem] text-slate-600 mt-2 font-medium"></div>
+      </div>
+
+      <!-- Benchmark Target Check Badge -->
+      <div id="benchmarkCheck" class="text-center text-xs font-medium text-slate-500 py-1"></div>
+
+      <!-- Inputs Expander -->
+      <details class="group bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-hidden" open>
+        <summary class="flex justify-between items-center px-4 py-3 cursor-pointer select-none font-bold text-sm text-slate-800">
+          <span>⚙️ Inputs</span>
+          <span class="text-slate-400 text-xs transition-transform group-open:rotate-180">▼</span>
+        </summary>
+
+        <div class="p-4 pt-1 space-y-4 border-t border-slate-100">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">Start from a benchmark case</label>
+            <select id="presetSelect" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs md:text-sm bg-slate-50 focus:outline-none focus:ring-2 focus:ring-amber-500"></select>
+          </div>
+
+          <div class="flex border-b border-slate-200 text-xs font-bold text-slate-600">
+            <button id="tabBtnShape" class="tab-btn px-4 py-2 border-b-2 border-amber-600 text-amber-600" onclick="switchTab('shape')">📐 Shape</button>
+            <button id="tabBtnLining" class="tab-btn px-4 py-2 border-b-2 border-transparent text-slate-500 hover:text-slate-800" onclick="switchTab('lining')">🧱 Lining</button>
+            <button id="tabBtnCond" class="tab-btn px-4 py-2 border-b-2 border-transparent text-slate-500 hover:text-slate-800" onclick="switchTab('cond')">🌡️ Conditions</button>
+          </div>
+
+          <div id="tabShape" class="tab-content space-y-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Equipment type</label>
+              <select id="geom" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs md:text-sm">
+                <option value="hcyl">Horizontal cylinder</option>
+                <option value="vcyl">Vertical cylinder</option>
+                <option value="wall">Vertical wall</option>
+                <option value="roof">Roof (heat flows up)</option>
+                <option value="floor">Floor (heat flows down)</option>
+                <option value="sphere">Sphere</option>
+              </select>
+            </div>
+            <div id="dimFields" class="grid grid-cols-2 gap-3"></div>
+          </div>
+
+          <div id="tabLining" class="tab-content hidden space-y-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Lining system</label>
+              <select id="lining" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs md:text-sm">
+                <option value="1">Lining 1 · 1 layer (Castable X)</option>
+                <option value="2">Lining 2 · 1 layer (Castable Y)</option>
+                <option value="3">Lining 3 · 2 layers (Castable Z + Insulating Cast)</option>
+                <option value="4">Lining 4 · 3 layers (Castable Z + Insul. Cast + Board)</option>
+                <option value="5">Lining 5 · 3 layers (extended to 2500 °F)</option>
+              </select>
+            </div>
+            <div id="layerFields" class="space-y-2"></div>
+          </div>
+
+          <div id="tabCond" class="tab-content hidden grid grid-cols-2 gap-3">
+            <div>
+              <label id="lblT1" class="block text-xs font-semibold text-slate-600 mb-1">Hot face temperature (°F)</label>
+              <input id="t1" type="number" class="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs md:text-sm" />
+            </div>
+            <div>
+              <label id="lblT0" class="block text-xs font-semibold text-slate-600 mb-1">Ambient temperature (°F)</label>
+              <input id="t0" type="number" class="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs md:text-sm" />
+            </div>
+            <div>
+              <label id="lblWind" class="block text-xs font-semibold text-slate-600 mb-1">Wind speed (mph)</label>
+              <input id="wind" type="number" min="0" class="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs md:text-sm" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Shell emissivity (ε)</label>
+              <input id="eps" type="number" step="0.05" min="0.05" max="1" class="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs md:text-sm" />
+            </div>
+          </div>
+        </div>
+      </details>
+    </div>
+
+    <!-- ==========================================
+         MODE 2: REVERSE DESIGNER (OPTIMIZER) VIEW
+         ========================================== -->
+    <div id="viewRev" class="hidden space-y-4">
+      <div class="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+          <div>
+            <h2 class="text-sm md:text-base font-extrabold text-slate-900">🎯 Reverse Refractory Lining Designer</h2>
+            <p class="text-xs text-slate-500">Differential Evolution (DE) searches Linings 1–5 to meet your maximum shell temperature target</p>
+          </div>
+        </div>
+
+        <!-- Reverse Sub-tabs -->
+        <div class="flex border-b border-slate-200 text-xs font-bold text-slate-600">
+          <button id="revTabBtnShape" class="px-3 py-2 border-b-2 border-amber-600 text-amber-600" onclick="switchRevTab('shape')">📐 1. Shape & Conditions</button>
+          <button id="revTabBtnAdv" class="px-3 py-2 border-b-2 border-transparent text-slate-500 hover:text-slate-800" onclick="switchRevTab('adv')">🧬 2. Constraints & Fixed Layers</button>
+        </div>
+
+        <!-- Reverse Tab 1: Shape, Conditions & Target -->
+        <div id="revTabShape" class="space-y-3">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Equipment type</label>
+              <select id="revGeom" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs md:text-sm">
+                <option value="hcyl">Horizontal cylinder</option>
+                <option value="vcyl">Vertical cylinder</option>
+                <option value="wall">Vertical wall</option>
+                <option value="roof">Roof (heat flows up)</option>
+                <option value="floor">Floor (heat flows down)</option>
+                <option value="sphere">Sphere</option>
+              </select>
+            </div>
+            <div>
+              <label id="lblRevTargetTs" class="block text-xs font-bold text-amber-700 mb-1">Target MAX Shell Temperature (°F)</label>
+              <input id="revTargetTs" type="number" class="w-full rounded-xl border-2 border-amber-400 bg-amber-50/40 px-3 py-1.5 text-xs md:text-sm font-bold text-slate-900" />
+            </div>
+          </div>
+
+          <div id="revDimFields" class="grid grid-cols-2 gap-3"></div>
+
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3 pt-1">
+            <div>
+              <label id="lblRevT1" class="block text-xs font-semibold text-slate-600 mb-1">Hot face (°F)</label>
+              <input id="revT1" type="number" class="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs md:text-sm" />
+            </div>
+            <div>
+              <label id="lblRevT0" class="block text-xs font-semibold text-slate-600 mb-1">Ambient (°F)</label>
+              <input id="revT0" type="number" class="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs md:text-sm" />
+            </div>
+            <div>
+              <label id="lblRevWind" class="block text-xs font-semibold text-slate-600 mb-1">Wind (mph)</label>
+              <input id="revWind" type="number" min="0" class="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs md:text-sm" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Emissivity (ε)</label>
+              <input id="revEps" type="number" step="0.05" min="0.05" max="1" class="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs md:text-sm" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Reverse Tab 2: Advanced Settings & Fixed Layer Locks -->
+        <div id="revTabAdv" class="hidden space-y-3">
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div>
+              <label id="lblRevMaxTot" class="block text-xs font-semibold text-slate-600 mb-1">Max Total Thick (in.)</label>
+              <input id="revMaxTot" type="number" min="1" class="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs md:text-sm" />
+            </div>
+            <div>
+              <label id="lblRevMinLay" class="block text-xs font-semibold text-slate-600 mb-1">Min Layer (in.)</label>
+              <input id="revMinLay" type="number" min="0.1" class="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs md:text-sm" />
+            </div>
+            <div>
+              <label id="lblRevMaxLay" class="block text-xs font-semibold text-slate-600 mb-1">Max Layer (in.)</label>
+              <input id="revMaxLay" type="number" min="1" class="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs md:text-sm" />
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-600 mb-1">Thickness Increment</label>
+              <select id="revStepInc" class="w-full rounded-xl border border-slate-300 px-2.5 py-1.5 text-xs md:text-sm">
+                <option value="0">Continuous (exact)</option>
+                <option value="0.25" selected>0.25 in. (~6.4 mm)</option>
+                <option value="0.5">0.50 in. (~12.7 mm)</option>
+                <option value="1.0">1.00 in. (~25.4 mm)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-4 pt-1">
+            <label class="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 cursor-pointer">
+              <input type="checkbox" id="revEnforceLimits" checked class="rounded text-amber-600 focus:ring-amber-500" />
+              Enforce API RP 985 Sec. 8.3 material temperature limits (Linings 1–4 ≤ 2000 °F, Lining 5 ≤ 2500 °F)
+            </label>
+          </div>
+
+          <!-- Candidate Linings & Fixed Layer Locks -->
+          <div class="border-t border-slate-100 pt-2">
+            <div class="text-xs font-bold text-slate-700 mb-2">Candidate Lining Systems & Optional Fixed Layer Thicknesses:</div>
+            <div id="revLiningLocks" class="space-y-2 max-h-60 overflow-y-auto pr-1"></div>
+          </div>
+        </div>
+
+        <button id="btnRunOptimizer" onclick="runReverseOptimization()" class="w-full py-2.5 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs md:text-sm shadow-sm transition-all">
+          🚀 Run Evolutionary Optimization (Differential Evolution)
+        </button>
+      </div>
+
+      <!-- Reverse Warning / Status Banner -->
+      <div id="revStatusBox" class="hidden bg-amber-50 border border-amber-200 text-amber-800 px-3.5 py-2.5 rounded-xl text-xs font-semibold"></div>
+
+      <!-- Reverse Results Container -->
+      <div id="revResultsArea" class="hidden space-y-4">
+        <!-- 3 Categorized Winner Cards -->
+        <div>
+          <h3 class="text-sm font-bold text-slate-800 mb-2">🏆 Categorized Optimal Designs (Click a card to inspect profile)</h3>
+          <div id="revCategoryCards" class="grid grid-cols-1 md:grid-cols-3 gap-2.5"></div>
+        </div>
+
+        <!-- Selected Solution Detailed Profile View -->
+        <div class="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs space-y-4">
+          <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-slate-100 pb-3">
+            <div>
+              <span id="revInspectBadge" class="text-[0.68rem] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md bg-amber-100 text-amber-800">Selected Design</span>
+              <h3 id="revInspectTitle" class="text-base font-black text-slate-900 mt-1">--</h3>
+            </div>
+            <div class="flex gap-4 text-xs">
+              <div><span class="text-slate-400">Shell Temp:</span> <strong id="revInspectTs" class="text-slate-900">--</strong></div>
+              <div><span class="text-slate-400">Heat Loss:</span> <strong id="revInspectQ" class="text-slate-900">--</strong></div>
+              <div><span class="text-slate-400">Total Thick:</span> <strong id="revInspectTh" class="text-slate-900">--</strong></div>
+            </div>
+          </div>
+
+          <div class="h-60 relative w-full">
+            <canvas id="revTempChart"></canvas>
+          </div>
+
+          <div>
+            <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Layer-by-Layer Breakdown & Temperature Profile</h4>
+            <div id="revLayerCards" class="space-y-2"></div>
+          </div>
+
+          <div>
+            <h4 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Where the temperature drop happens</h4>
+            <div id="revStackBar" class="flex h-6 rounded-lg overflow-hidden my-1.5 border border-slate-200/60"></div>
+            <div id="revStackLegend" class="flex flex-wrap gap-x-3.5 gap-y-1 text-[0.72rem] text-slate-600 font-medium"></div>
+          </div>
+        </div>
+
+        <!-- Ranked Solutions Table -->
+        <div class="bg-white border border-slate-200/80 rounded-2xl p-4 shadow-xs overflow-hidden">
+          <h3 class="text-sm font-bold text-slate-800 mb-2">📊 Ranked Solutions Found by Differential Evolution (Click any row to inspect)</h3>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr class="border-b border-slate-200 text-slate-400 uppercase text-[0.68rem]">
+                  <th class="py-2 px-2">Rank</th>
+                  <th class="py-2 px-2">Category / Status</th>
+                  <th class="py-2 px-2">Lining</th>
+                  <th class="py-2 px-2">Layer Thicknesses</th>
+                  <th id="thRevTot" class="py-2 px-2">Total (in.)</th>
+                  <th id="thRevTs" class="py-2 px-2">Shell (°F)</th>
+                  <th id="thRevQ" class="py-2 px-2">Heat Loss</th>
+                </tr>
+              </thead>
+              <tbody id="revRankedBody" class="divide-y divide-slate-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="text-center text-[0.7rem] text-slate-400 pb-8">
+      API RP 985 Calculator & Evolutionary Optimizer · GitHub Pages Static Deployment
+    </footer>
+  </div>
+
+  <script>
+    // ==========================================
+    // 1. CONSTANTS & UNIT CONVERSION FACTORS
+    // ==========================================
+    const SIGMA = 0.1714e-8;
+    const G = 32.174 * 3600 * 3600;
+    const PALETTE = ["#e4572e", "#f3a712", "#5b9bd5", "#7a8b99"];
+
+    const FT_M = 0.3048;
+    const IN_MM = 25.4;
+    const MPH_MS = 0.44704;
+    const BTU_HFT2_TO_WM2 = 3.154591;
+    const BTU_HFT_TO_WM = 0.961519;
+    const H_TO_SI = 5.678263;
+    const K_TO_SI = 0.1442279;
+    const R_TO_SI = 0.1761102;
+
+    const toSI = {
+      len: (v) => v * FT_M,
+      thk: (v) => v * IN_MM,
+      temp: (v) => (v - 32.0) / 1.8,
+      wind: (v) => v * MPH_MS
+    };
+    const toUS = {
+      len: (v) => v / FT_M,
+      thk: (v) => v / IN_MM,
+      temp: (v) => v * 1.8 + 32.0,
+      wind: (v) => v / MPH_MS
+    };
+
+    const Z = [[500, 23.60], [1000, 14.85], [1500, 14.13], [2000, 15.61]];
+    const IC = [[500, 3.32], [1000, 3.02], [1500, 3.24], [2000, 3.60]];
+    const IB = [[500, 0.57], [1000, 0.80], [1500, 1.13], [2000, 1.60]];
+
+    const LININGS = {
+      1: ["Lining 1 · 1 layer (Castable X)", [["Castable X", 6.0, [[0, 4.0]]]]],
+      2: ["Lining 2 · 1 layer (Castable Y)", [["Castable Y", 6.0, [[500, 0.25], [1000, 0.50], [1500, 1.0], [2000, 2.0]]]]],
+      3: ["Lining 3 · 2 layers (Castable Z + Insulating Cast)", [["Castable Z", 6.0, Z], ["Insulating Cast", 4.0, IC]]],
+      4: ["Lining 4 · 3 layers (Castable Z + Insul. Cast + Board)", [["Castable Z", 6.0, Z], ["Insulating Cast", 4.0, IC], ["Insulation board", 1.5, IB]]],
+      5: ["Lining 5 · 3 layers (extended to 2500 °F)", [
+        ["Castable Z ext", 6.0, [[500, 23.60], [1000, 14.85], [2000, 15.61], [2500, 19.0]]],
+        ["Insulating Cast ext", 4.0, [[0, 4.05], [1000, 3.02], [2000, 3.60], [2500, 4.0]]],
+        ["Insulation board ext", 1.5, [[0, 0.36], [500, 0.57], [1000, 0.80], [2000, 1.60]]]
+      ]]
+    };
+
+    const LAYER_MAX_TEMP_F = {
+      1: [2500.0],
+      2: [2000.0],
+      3: [2000.0, 2000.0],
+      4: [2000.0, 2000.0, 2000.0],
+      5: [2500.0, 2500.0, 2000.0]
+    };
+
+    const PRESETS = [
+      { name: "Custom input", custom: true },
+      { name: "Case 1: Horiz. Cylinder | Lining 1 | 0 mph", geom: "hcyl", d: { D: 8.0 }, lin: 1, th: [6.0], eps: 0.8, t0: 100.0, wind: 0.0, t1: 2000.0, expTs: 413, expQ: 991 },
+      { name: "Case 2: Horiz. Cylinder | Lining 1 | 10 mph", geom: "hcyl", d: { D: 8.0 }, lin: 1, th: [6.0], eps: 0.8, t0: 100.0, wind: 10.0, t1: 2000.0, expTs: 385, expQ: 1008 },
+      { name: "Case 3: Horiz. Cylinder | Lining 1 | -5 °F", geom: "hcyl", d: { D: 8.0 }, lin: 1, th: [6.0], eps: 0.8, t0: -5.0, wind: 10.0, t1: 2000.0, expTs: 330, expQ: 1042 },
+      { name: "Case 4: Horiz. Cylinder | Lining 2 (variable k)", geom: "hcyl", d: { D: 8.0 }, lin: 2, th: [6.0], eps: 0.8, t0: -5.0, wind: 10.0, t1: 2000.0, expTs: 78, expQ: 208 },
+      { name: "Case 5: Vert. Cylinder | Lining 2 | 0 mph", geom: "vcyl", d: { D: 6.0, h: 30.0 }, lin: 2, th: [6.0], eps: 0.8, t0: 100.0, wind: 0.0, t1: 2000.0, expTs: 198, expQ: 201 },
+      { name: "Case 6: Vert. Cylinder | Lining 3", geom: "vcyl", d: { D: 6.0, h: 30.0 }, lin: 3, th: [6.0, 4.0], eps: 0.8, t0: 100.0, wind: 0.0, t1: 2000.0, expTs: 388, expQ: 873 },
+      { name: "Case 7: Vert. Cylinder | Lining 4", geom: "vcyl", d: { D: 6.0, h: 30.0 }, lin: 4, th: [6.0, 4.0, 1.5], eps: 0.8, t0: 100.0, wind: 0.0, t1: 2000.0, expTs: 272, expQ: 419 },
+      { name: "Case 8: Vert. Cylinder | Lining 5 | 2500 °F", geom: "vcyl", d: { D: 30.0, h: 8.0 }, lin: 5, th: [6.0, 4.0, 1.5], eps: 0.8, t0: -5.0, wind: 10.0, t1: 2500.0, expTs: 235, expQ: 649 },
+      { name: "Case 9: Vertical Wall (30x6 ft) | Lining 4", geom: "wall", d: { h: 30.0, l: 6.0 }, lin: 4, th: [6.0, 4.0, 1.5], eps: 0.8, t0: 100.0, wind: 0.0, t1: 2000.0, expTs: 283, expQ: 457 },
+      { name: "Case 10: Vertical Wall (6x30 ft) | Lining 4", geom: "wall", d: { h: 6.0, l: 30.0 }, lin: 4, th: [6.0, 4.0, 1.5], eps: 0.8, t0: 100.0, wind: 0.0, t1: 2000.0, expTs: 281, expQ: 458 },
+      { name: "Case 11: Vertical Wall | Lining 4 | -5 °F, 10 mph", geom: "wall", d: { h: 6.0, l: 30.0 }, lin: 4, th: [6.0, 4.0, 1.5], eps: 0.8, t0: -5.0, wind: 10.0, t1: 2000.0, expTs: 161, expQ: 475 },
+      { name: "Case 12: Vertical Wall | Lining 5 | ε 0.15", geom: "wall", d: { h: 6.0, l: 30.0 }, lin: 5, th: [6.0, 4.0, 1.5], eps: 0.15, t0: -5.0, wind: 10.0, t1: 2500.0, expTs: 302, expQ: 651 },
+      { name: "Case 13: Roof (6x30 ft) | Lining 4 | 0 mph", geom: "roof", d: { l: 6.0, w: 30.0 }, lin: 4, th: [6.0, 4.0, 1.5], eps: 0.8, t0: 100.0, wind: 0.0, t1: 2000.0, expTs: 267, expQ: 460 },
+      { name: "Case 14: Roof (30x6 ft) | Lining 4 | 0 mph", geom: "roof", d: { l: 30.0, w: 6.0 }, lin: 4, th: [6.0, 4.0, 1.5], eps: 0.8, t0: 100.0, wind: 0.0, t1: 2000.0, expTs: 267, expQ: 460 },
+      { name: "Case 15: Roof | Lining 4 | -5 °F, 10 mph", geom: "roof", d: { l: 30.0, w: 6.0 }, lin: 4, th: [6.0, 4.0, 1.5], eps: 0.8, t0: -5.0, wind: 10.0, t1: 2000.0, expTs: 158, expQ: 476 },
+      { name: "Case 16: Roof | Lining 5 | 2500 °F, ε 0.15", geom: "roof", d: { l: 30.0, w: 6.0 }, lin: 5, th: [6.0, 4.0, 1.5], eps: 0.15, t0: -5.0, wind: 10.0, t1: 2500.0, expTs: 285, expQ: 654 },
+      { name: "Case 17: Floor (6x30 ft) | Lining 4 | 0 mph", geom: "floor", d: { l: 6.0, w: 30.0 }, lin: 4, th: [6.0, 4.0, 1.5], eps: 0.8, t0: 100.0, wind: 0.0, t1: 2000.0, expTs: 317, expQ: 452 },
+      { name: "Case 18: Floor (30x6 ft) | Lining 4 | 0 mph", geom: "floor", d: { l: 30.0, w: 6.0 }, lin: 4, th: [6.0, 4.0, 1.5], eps: 0.8, t0: 100.0, wind: 0.0, t1: 2000.0, expTs: 317, expQ: 452 },
+      { name: "Case 19: Floor | Lining 4 | -5 °F, 10 mph", geom: "floor", d: { l: 30.0, w: 6.0 }, lin: 4, th: [6.0, 4.0, 1.5], eps: 0.8, t0: -5.0, wind: 10.0, t1: 2000.0, expTs: 167, expQ: 475 },
+      { name: "Case 20: Floor | Lining 5 | 2500 °F, ε 0.15", geom: "floor", d: { l: 30.0, w: 6.0 }, lin: 5, th: [6.0, 4.0, 1.5], eps: 0.15, t0: -5.0, wind: 10.0, t1: 2500.0, expTs: 332, expQ: 647 }
+    ];
+
+    // ==========================================
+    // 2. CORE SOLVER ENGINE (Always US units)
+    // ==========================================
+    function fitCubic(pts) {
+      if (pts.length === 1) return [pts[0][1], 0, 0, 0];
+      const n = pts.length;
+      const A = pts.map(([t]) => [1, t, t * t, t * t * t].slice(0, n));
+      const B = pts.map(([, k]) => k);
+      for (let i = 0; i < n; i++) {
+        let maxRow = i;
+        for (let k = i + 1; k < n; k++) if (Math.abs(A[k][i]) > Math.abs(A[maxRow][i])) maxRow = k;
+        [A[i], A[maxRow]] = [A[maxRow], A[i]];
+        [B[i], B[maxRow]] = [B[maxRow], B[i]];
+        for (let k = i + 1; k < n; k++) {
+          const c = -A[k][i] / A[i][i];
+          for (let j = i; j < n; j++) A[k][j] = i === j ? 0 : A[k][j] + c * A[i][j];
+          B[k] += c * B[i];
+        }
+      }
+      const x = new Array(n).fill(0);
+      for (let i = n - 1; i >= 0; i--) {
+        x[i] = B[i] / A[i][i];
+        for (let k = i - 1; k >= 0; k--) B[k] -= A[k][i] * x[i];
+      }
+      while (x.length < 4) x.push(0);
+      return x;
+    }
+
+    const PRECOMPUTED_POLYS = {};
+    Object.keys(LININGS).forEach(lid => {
+      PRECOMPUTED_POLYS[lid] = LININGS[lid][1].map(([, , pts]) => fitCubic(pts));
+    });
+
+    function kEff(coeffs, t1, t2) {
+      const [a, b, c, d] = coeffs;
+      return Math.max(
+        a + (b / 2) * (t1 + t2) + (c / 3) * (t1 * t1 + t1 * t2 + t2 * t2) + (d / 4) * (t1 + t2) * (t1 * t1 + t2 * t2),
+        1e-4
+      );
+    }
+
+    function air(tf) {
+      const tk = Math.max((tf - 32) / 1.8 + 273.15, 50);
+      const kf = (6.325e-6 * Math.sqrt(tk)) / (1 + (245.4 * Math.pow(10, -12 / tk)) / tk) * 241.77;
+      const mu = ((145.8 * tk * Math.sqrt(tk)) / (tk + 110.4)) * 241.9e-7;
+      const pr = Math.max(0.7189 - tf * (1.6349e-4 - tf * (1.8106e-7 - 5.6617e-11 * tf)), 0.1);
+      const cp = Math.max(0.24008 - tf * (1.2477e-6 - tf * (4.0489e-8 - 1.6088e-11 * tf)), 0.1);
+      const rho = 22.0493 / tk;
+      return { kf, nu: mu / rho, pr, cp, rho, beta: 1 / (1.8 * tk), mu };
+    }
+
+    function hOut(ts, t0, eps, wind, geom, d) {
+      const Ts = Math.max(ts + 459.67, 1);
+      const To = Math.max(t0 + 459.67, 1);
+      const hr = SIGMA * eps * (Ts ** 3 + Ts ** 2 * To + Ts * To ** 2 + To ** 3);
+      const { kf, nu, pr, cp, rho, beta } = air(0.5 * (ts + t0));
+      const dT = Math.abs(Ts - To);
+      const V = Math.max(wind, 0) * 5280;
+      const Ra = (L) => (G * beta * rho * cp * dT * (L ** 3)) / (nu * kf);
+
+      let Ln, Nun;
+      if (geom === "wall" || geom === "vcyl") {
+        Ln = d.h;
+        Nun = (0.825 + (0.387 * Math.pow(Ra(Ln), 1 / 6)) / Math.pow(1 + Math.pow(0.492 / pr, 9 / 16), 8 / 27)) ** 2;
+      } else if (geom === "hcyl") {
+        Ln = d.D;
+        Nun = (0.60 + (0.387 * Math.pow(Ra(Ln), 1 / 6)) / Math.pow(1 + Math.pow(0.559 / pr, 9 / 16), 8 / 27)) ** 2;
+      } else if (geom === "sphere") {
+        Ln = d.D;
+        Nun = 2.0 + (0.589 * Math.pow(Ra(Ln), 0.25)) / Math.pow(1 + Math.pow(0.469 / pr, 9 / 16), 4 / 9);
+      } else {
+        Ln = (d.l * d.w) / (2 * (d.l + d.w));
+        const r = Ra(Ln);
+        const up = (geom === "roof" && ts >= t0) || (geom === "floor" && ts < t0);
+        Nun = up ? (r < 1e7 ? 0.54 * Math.pow(r, 0.25) : 0.15 * Math.pow(r, 1 / 3)) : 0.27 * Math.pow(r, 0.25);
+      }
+
+      let Lf, Nuf;
+      if (geom === "wall" || geom === "roof" || geom === "floor") {
+        Lf = d.l;
+        const Re = (V * Lf) / nu;
+        Nuf = Re < 5e5
+          ? (0.6744 * Math.sqrt(Re) * Math.pow(pr, 1 / 3)) / Math.pow(1 + Math.pow(0.0468 / pr, 2 / 3), 0.25)
+          : Math.max((0.037 * Math.pow(Re, 0.8) - 871) * Math.pow(pr, 1 / 3), 0);
+      } else if (geom === "hcyl" || geom === "vcyl") {
+        Lf = d.D;
+        const Re = (V * Lf) / nu;
+        Nuf = 0.3 + ((0.62 * Math.sqrt(Re) * Math.pow(pr, 1 / 3)) / Math.pow(1 + Math.pow(0.4 / pr, 2 / 3), 0.25)) * Math.pow(1 + Math.pow(Re / 282000, 5 / 8), 0.8);
+      } else {
+        Lf = d.D;
+        const a0 = air(t0), as = air(ts);
+        const Re = (V * Lf) / a0.nu;
+        Nuf = 2.0 + (0.4 * Math.sqrt(Re) + 0.06 * Math.pow(Re, 2 / 3)) * Math.pow(a0.pr, 0.4) * Math.pow(a0.mu / as.mu, 0.25);
+      }
+
+      let hc;
+      if (geom === "hcyl") {
+        const Nu = 0.3 + Math.pow((Nuf - 0.3) ** 4 + (Nun - 0.3) ** 4, 0.25);
+        hc = (Nu * kf) / Lf;
+      } else if (geom === "sphere") {
+        const Nu = 2.0 + Math.pow(Math.max(Nuf - 2, 0) ** 4 + Math.max(Nun - 2, 0) ** 4, 0.25);
+        hc = (Nu * kf) / Lf;
+      } else {
+        const j = geom === "roof" || geom === "floor" ? 3.5 : 3.0;
+        hc = Math.pow(((Nuf * kf) / Lf) ** j + ((Nun * kf) / Ln) ** j, 1 / j);
+      }
+      return { hTot: hr + hc, hr, hc };
+    }
+
+    function solveApi985Core(geom, dims, linId, thick, eps, t0, wind, t1) {
+      const polys = PRECOMPUTED_POLYS[linId];
+      const n = polys.length;
+      const totalThick = thick.reduce((a, b) => a + b, 0);
+      if (["hcyl", "vcyl", "sphere"].includes(geom) && totalThick >= dims.D * 6) {
+        return null;
+      }
+      const x = [0];
+      thick.forEach((th) => x.push(x[x.length - 1] + th));
+      let xLocal = [...x];
+      if (["hcyl", "vcyl", "sphere"].includes(geom)) {
+        const rOut = dims.D * 6;
+        for (let i = 0; i < xLocal.length; i++) xLocal[i] = rOut - totalThick + xLocal[i];
+      }
+
+      const tsInit = t0 + 0.1 * (t1 - t0);
+      let t = xLocal.map((xi, i) => (i === 0 ? t1 : t1 + ((tsInit - t1) * (xi - xLocal[0])) / (xLocal[xLocal.length - 1] - xLocal[0])));
+      let q = 0, ke = [], R = [], hStats = {};
+      let alpha = 1.0, prevErr = Infinity;
+
+      for (let it = 0; it < 500; it++) {
+        ke = polys.map((p, m) => kEff(p, t[m + 1], t[m]));
+        R = ke.map((k, m) => {
+          if (geom === "hcyl" || geom === "vcyl") return (xLocal[xLocal.length - 1] * Math.log(xLocal[m + 1] / xLocal[m])) / k;
+          if (geom === "sphere") return (xLocal[xLocal.length - 1] ** 2 * (xLocal[m + 1] - xLocal[m])) / (k * xLocal[m] * xLocal[m + 1]);
+          return (xLocal[m + 1] - xLocal[m]) / k;
+        });
+        hStats = hOut(t[t.length - 1], t0, eps, wind, geom, dims);
+        const Ro = 1 / hStats.hTot;
+        q = (t1 - t0) / (R.reduce((a, b) => a + b, 0) + Ro);
+
+        const nextT = [t1];
+        for (let m = 0; m < n; m++) nextT.push(nextT[m] - q * R[m]);
+
+        const maxErr = Math.max(...nextT.map((val, i) => Math.abs(val - t[i])));
+        if (maxErr < 0.1) {
+          t = nextT;
+          ke = polys.map((p, m) => kEff(p, t[m + 1], t[m]));
+          return { t, q, ke, R, hStats, x, totalThick };
+        }
+        if (maxErr > prevErr && it > 3) alpha = Math.max(0.25, alpha * 0.7);
+        prevErr = maxErr;
+        t = t.map((val, i) => (1 - alpha) * val + alpha * nextT[i]);
+      }
+      return null;
+    }
+
+    // ==========================================
+    // 3. STATE MANAGEMENT & UI
+    // ==========================================
+    let stateUS = {
+      dims: { D: 8.0, h: 30.0, l: 30.0, w: 6.0 },
+      thick: [6.0],
+      t1: 2000.0,
+      t0: 100.0,
+      wind: 0.0,
+      eps: 0.8
+    };
+
+    let revStateUS = {
+      dims: { D: 8.0, h: 30.0, l: 30.0, w: 6.0 },
+      t1: 2000.0,
+      t0: 100.0,
+      wind: 0.0,
+      eps: 0.8,
+      targetTs: 280.0,
+      maxTot: 18.0,
+      minLay: 1.0,
+      maxLay: 14.0,
+      allowedLinings: { 1: true, 2: true, 3: true, 4: true, 5: true },
+      lockedLayers: {},
+      lockedValues: {}
+    };
+
+    Object.keys(LININGS).forEach(lid => {
+      LININGS[lid][1].forEach(([, defTh], idx) => {
+        revStateUS.lockedValues[`${lid}_${idx}`] = defTh;
+      });
+    });
+
+    let isSI = false;
+    let chartInstance = null;
+    let revChartInstance = null;
+    let currentPreset = null;
+    let lastRevResults = null;
+    let activeInspectedSol = null;
+
+    const siToggle = document.getElementById("siToggle");
+    const presetSelect = document.getElementById("presetSelect");
+    const geomSelect = document.getElementById("geom");
+    const liningSelect = document.getElementById("lining");
+    const dimFields = document.getElementById("dimFields");
+    const layerFields = document.getElementById("layerFields");
+
+    const layerBandsPlugin = {
+      id: "layerBands",
+      beforeDraw(chart) {
+        if (!chart.config.options.customBands) return;
+        const { ctx, chartArea: { top, bottom }, scales: { x } } = chart;
+        const bands = chart.config.options.customBands;
+        ctx.save();
+        bands.forEach(b => {
+          const xStart = x.getPixelForValue(b.x0);
+          const xEnd = x.getPixelForValue(b.x1);
+          ctx.fillStyle = b.color;
+          ctx.fillRect(xStart, top, xEnd - xStart, bottom - top);
+        });
+        ctx.restore();
+      }
+    };
+    Chart.register(layerBandsPlugin);
+
+    PRESETS.forEach((p, idx) => {
+      const opt = document.createElement("option");
+      opt.value = idx;
+      opt.textContent = p.name;
+      presetSelect.appendChild(opt);
+    });
+
+    window.switchMode = function(mode) {
+      const isFwd = mode === "fwd";
+      document.getElementById("viewFwd").classList.toggle("hidden", !isFwd);
+      document.getElementById("viewRev").classList.toggle("hidden", isFwd);
+      document.getElementById("modeBtnFwd").className = isFwd
+        ? "py-2.5 px-3 rounded-xl bg-white text-slate-900 shadow-xs transition-all"
+        : "py-2.5 px-3 rounded-xl text-slate-600 hover:text-slate-900 transition-all";
+      document.getElementById("modeBtnRev").className = !isFwd
+        ? "py-2.5 px-3 rounded-xl bg-white text-slate-900 shadow-xs transition-all"
+        : "py-2.5 px-3 rounded-xl text-slate-600 hover:text-slate-900 transition-all";
+    };
+
+    window.switchTab = function(tab) {
+      ["shape", "lining", "cond"].forEach(t => {
+        const isTarget = t === tab;
+        document.getElementById(`tab${t.charAt(0).toUpperCase() + t.slice(1)}`).classList.toggle("hidden", !isTarget);
+        const btn = document.getElementById(`tabBtn${t.charAt(0).toUpperCase() + t.slice(1)}`);
+        btn.className = isTarget
+          ? "tab-btn px-4 py-2 border-b-2 border-amber-600 text-amber-600 font-bold"
+          : "tab-btn px-4 py-2 border-b-2 border-transparent text-slate-500 hover:text-slate-800 font-bold";
+      });
+    };
+
+    window.switchRevTab = function(tab) {
+      const isShape = tab === "shape";
+      document.getElementById("revTabShape").classList.toggle("hidden", !isShape);
+      document.getElementById("revTabAdv").classList.toggle("hidden", isShape);
+      document.getElementById("revTabBtnShape").className = isShape
+        ? "px-3 py-2 border-b-2 border-amber-600 text-amber-600 font-bold"
+        : "px-3 py-2 border-b-2 border-transparent text-slate-500 hover:text-slate-800 font-bold";
+      document.getElementById("revTabBtnAdv").className = !isShape
+        ? "px-3 py-2 border-b-2 border-amber-600 text-amber-600 font-bold"
+        : "px-3 py-2 border-b-2 border-transparent text-slate-500 hover:text-slate-800 font-bold";
+    };
+
+    function fmtInput(val, kind) {
+      if (isSI) {
+        return kind === "len" ? Number(toSI.len(val).toFixed(3)) : Number(toSI[kind](val).toFixed(2));
+      }
+      return Number(val.toFixed(2));
+    }
+
+    function renderDimInputs() {
+      const g = geomSelect.value;
+      dimFields.innerHTML = "";
+      const fields = [];
+      if (["hcyl", "vcyl", "sphere"].includes(g)) fields.push(["D", "Shell inside diameter"]);
+      if (["vcyl", "wall"].includes(g)) fields.push(["h", "Height"]);
+      if (["wall", "roof", "floor"].includes(g)) fields.push(["l", "Length in wind direction"]);
+      if (["roof", "floor"].includes(g)) fields.push(["w", "Width"]);
+
+      const unitLabel = isSI ? "m" : "ft";
+      const stepVal = isSI ? "0.1" : "0.5";
+
+      fields.forEach(([key, label]) => {
+        const div = document.createElement("div");
+        div.innerHTML = `
+          <label class="block text-xs font-semibold text-slate-600 mb-1">${label} (${unitLabel})</label>
+          <input type="number" step="${stepVal}" min="0.05" value="${fmtInput(stateUS.dims[key], 'len')}"
+            class="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs md:text-sm" />
+        `;
+        div.querySelector("input").addEventListener("input", (e) => {
+          const raw = parseFloat(e.target.value);
+          if (!isNaN(raw)) {
+            stateUS.dims[key] = isSI ? toUS.len(raw) : raw;
+            calculate();
+          }
+        });
+        dimFields.appendChild(div);
+      });
+    }
+
+    function renderLayerInputs() {
+      const [, layers] = LININGS[liningSelect.value];
+      const unitLabel = isSI ? "mm" : "in.";
+      const stepVal = isSI ? "5.0" : "0.5";
+      layerFields.innerHTML = "";
+
+      layers.forEach(([name], i) => {
+        const div = document.createElement("div");
+        div.innerHTML = `
+          <label class="block text-xs font-semibold text-slate-600 mb-1">${i + 1}. ${name} thickness (${unitLabel})</label>
+          <input type="number" step="${stepVal}" min="0.1" value="${fmtInput(stateUS.thick[i], 'thk')}"
+            class="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs md:text-sm" />
+        `;
+        div.querySelector("input").addEventListener("input", (e) => {
+          const raw = parseFloat(e.target.value);
+          if (!isNaN(raw)) {
+            stateUS.thick[i] = isSI ? toUS.thk(raw) : raw;
+            calculate();
+          }
+        });
+        layerFields.appendChild(div);
+      });
+    }
+
+    function renderCondInputs() {
+      const uT = isSI ? "°C" : "°F";
+      const uW = isSI ? "m/s" : "mph";
+
+      document.getElementById("lblT1").textContent = `Hot face temperature (${uT})`;
+      document.getElementById("lblT0").textContent = `Ambient temperature (${uT})`;
+      document.getElementById("lblWind").textContent = `Wind speed (${uW})`;
+
+      const t1El = document.getElementById("t1");
+      const t0El = document.getElementById("t0");
+      const windEl = document.getElementById("wind");
+      const epsEl = document.getElementById("eps");
+
+      t1El.value = fmtInput(stateUS.t1, "temp");
+      t0El.value = fmtInput(stateUS.t0, "temp");
+      windEl.value = fmtInput(stateUS.wind, "wind");
+      epsEl.value = stateUS.eps;
+    }
+
+    // Reverse Designer UI Sync
+    function renderRevInputs() {
+      const g = document.getElementById("revGeom").value;
+      const revDimFields = document.getElementById("revDimFields");
+      revDimFields.innerHTML = "";
+      const fields = [];
+      if (["hcyl", "vcyl", "sphere"].includes(g)) fields.push(["D", "Shell inside diameter"]);
+      if (["vcyl", "wall"].includes(g)) fields.push(["h", "Height"]);
+      if (["wall", "roof", "floor"].includes(g)) fields.push(["l", "Length in wind direction"]);
+      if (["roof", "floor"].includes(g)) fields.push(["w", "Width"]);
+
+      const unitLen = isSI ? "m" : "ft";
+      const unitThk = isSI ? "mm" : "in.";
+      const unitTemp = isSI ? "°C" : "°F";
+      const unitWind = isSI ? "m/s" : "mph";
+
+      fields.forEach(([key, label]) => {
+        const div = document.createElement("div");
+        div.innerHTML = `
+          <label class="block text-xs font-semibold text-slate-600 mb-1">${label} (${unitLen})</label>
+          <input type="number" step="${isSI ? '0.1' : '0.5'}" min="0.05" value="${fmtInput(revStateUS.dims[key], 'len')}"
+            class="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-xs md:text-sm" />
+        `;
+        div.querySelector("input").addEventListener("input", (e) => {
+          const raw = parseFloat(e.target.value);
+          if (!isNaN(raw)) revStateUS.dims[key] = isSI ? toUS.len(raw) : raw;
+        });
+        revDimFields.appendChild(div);
+      });
+
+      document.getElementById("lblRevTargetTs").textContent = `Target MAX Shell Temperature (${unitTemp})`;
+      document.getElementById("lblRevT1").textContent = `Hot face (${unitTemp})`;
+      document.getElementById("lblRevT0").textContent = `Ambient (${unitTemp})`;
+      document.getElementById("lblRevWind").textContent = `Wind (${unitWind})`;
+      document.getElementById("lblRevMaxTot").textContent = `Max Total Thick (${unitThk})`;
+      document.getElementById("lblRevMinLay").textContent = `Min Layer (${unitThk})`;
+      document.getElementById("lblRevMaxLay").textContent = `Max Layer (${unitThk})`;
+
+      document.getElementById("revTargetTs").value = fmtInput(revStateUS.targetTs, "temp");
+      document.getElementById("revT1").value = fmtInput(revStateUS.t1, "temp");
+      document.getElementById("revT0").value = fmtInput(revStateUS.t0, "temp");
+      document.getElementById("revWind").value = fmtInput(revStateUS.wind, "wind");
+      document.getElementById("revEps").value = revStateUS.eps;
+      document.getElementById("revMaxTot").value = fmtInput(revStateUS.maxTot, "thk");
+      document.getElementById("revMinLay").value = fmtInput(revStateUS.minLay, "thk");
+      document.getElementById("revMaxLay").value = fmtInput(revStateUS.maxLay, "thk");
+
+      // Render candidate linings & lock checkboxes
+      const locksContainer = document.getElementById("revLiningLocks");
+      locksContainer.innerHTML = "";
+      Object.keys(LININGS).forEach(lid => {
+        const [lTitle, lLayers] = LININGS[lid];
+        const card = document.createElement("div");
+        card.className = "border border-slate-200 rounded-xl p-2.5 bg-slate-50/60 space-y-2";
+
+        let layersHtml = "";
+        lLayers.forEach(([lname], idx) => {
+          const k = `${lid}_${idx}`;
+          const isLocked = !!revStateUS.lockedLayers[k];
+          const valDisp = fmtInput(revStateUS.lockedValues[k], "thk");
+          layersHtml += `
+            <div class="flex items-center justify-between gap-2 pl-5 text-xs">
+              <label class="inline-flex items-center gap-1.5 text-slate-600 cursor-pointer">
+                <input type="checkbox" data-lockkey="${k}" ${isLocked ? "checked" : ""} class="rev-lock-chk rounded text-amber-600" />
+                <span>Fix Layer ${idx + 1} (${lname})</span>
+              </label>
+              <div class="flex items-center gap-1">
+                <input type="number" data-lockval="${k}" value="${valDisp}" step="${isSI ? '5' : '0.25'}" min="0.1"
+                  class="rev-lock-val w-20 rounded-lg border border-slate-300 px-2 py-0.5 text-xs bg-white" />
+                <span class="text-slate-400 text-[0.7rem]">${unitThk}</span>
+              </div>
+            </div>
+          `;
+        });
+
+        card.innerHTML = `
+          <label class="inline-flex items-center gap-2 text-xs font-bold text-slate-800 cursor-pointer">
+            <input type="checkbox" data-lid="${lid}" ${revStateUS.allowedLinings[lid] ? "checked" : ""} class="rev-allow-lid rounded text-amber-600" />
+            <span>${lTitle}</span>
+          </label>
+          <div class="space-y-1.5">${layersHtml}</div>
+        `;
+        locksContainer.appendChild(card);
+      });
+
+      locksContainer.querySelectorAll(".rev-allow-lid").forEach(el => {
+        el.addEventListener("change", (e) => {
+          revStateUS.allowedLinings[e.target.dataset.lid] = e.target.checked;
+        });
+      });
+      locksContainer.querySelectorAll(".rev-lock-chk").forEach(el => {
+        el.addEventListener("change", (e) => {
+          revStateUS.lockedLayers[e.target.dataset.lockkey] = e.target.checked;
+        });
+      });
+      locksContainer.querySelectorAll(".rev-lock-val").forEach(el => {
+        el.addEventListener("input", (e) => {
+          const raw = parseFloat(e.target.value);
+          if (!isNaN(raw)) {
+            revStateUS.lockedValues[e.target.dataset.lockval] = isSI ? toUS.thk(raw) : raw;
+          }
+        });
+      });
+    }
+
+    function syncAllInputsUI() {
+      renderDimInputs();
+      renderLayerInputs();
+      renderCondInputs();
+      renderRevInputs();
+    }
+
+    function loadPreset(idx) {
+      const p = PRESETS[idx];
+      currentPreset = p;
+      if (p.custom) {
+        calculate();
+        return;
+      }
+      geomSelect.value = p.geom;
+      stateUS.dims = { ...stateUS.dims, ...p.d };
+      liningSelect.value = p.lin;
+      stateUS.thick = [...p.th];
+      stateUS.eps = p.eps;
+      stateUS.t0 = p.t0;
+      stateUS.wind = p.wind;
+      stateUS.t1 = p.t1;
+
+      syncAllInputsUI();
+      calculate();
+    }
+
+    function renderChartOnCanvas(canvasId, existingChart, edgesDisp, tDisp, layerNames, uLen, uTemp) {
+      const bands = layerNames.map((name, i) => ({
+        x0: edgesDisp[i],
+        x1: edgesDisp[i + 1],
+        color: `${PALETTE[i % PALETTE.length]}38`
+      }));
+
+      const points = edgesDisp.map((x, i) => ({ x, y: Math.round(tDisp[i]) }));
+      if (existingChart) existingChart.destroy();
+
+      const ctx = document.getElementById(canvasId).getContext("2d");
+      return new Chart(ctx, {
+        type: "line",
+        data: {
+          datasets: [{
+            data: points,
+            borderColor: "#d62728",
+            borderWidth: 3,
+            pointBackgroundColor: "#d62728",
+            pointRadius: 5,
+            pointHoverRadius: 7,
+            fill: false,
+            tension: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          customBands: bands,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => `Depth: ${ctx.parsed.x.toFixed(1)} ${uLen} · Temp: ${ctx.parsed.y} ${uTemp}`
+              }
+            }
+          },
+          scales: {
+            x: {
+              type: "linear",
+              title: { display: true, text: `Distance from hot face (${uLen})`, font: { size: 11 } },
+              grid: { display: false }
+            },
+            y: {
+              title: { display: true, text: `Temperature (${uTemp})`, font: { size: 11 } },
+              grid: { display: false }
+            }
+          }
+        }
+      });
+    }
+
+    function calculate() {
+      const errorBox = document.getElementById("errorBox");
+      errorBox.classList.add("hidden");
+
+      const geom = geomSelect.value;
+      const linId = liningSelect.value;
+      const [, layers] = LININGS[linId];
+      const { t1, t0, wind, eps, dims, thick } = stateUS;
+
+      const totalThick = thick.reduce((a, b) => a + b, 0);
+      if (["hcyl", "vcyl", "sphere"].includes(geom) && totalThick >= dims.D * 6) {
+        const dispThk = isSI ? `${(totalThick * IN_MM).toFixed(0)} mm` : `${totalThick.toFixed(1)} in.`;
+        const dispRad = isSI ? `${(dims.D * 6 * IN_MM).toFixed(0)} mm` : `${(dims.D * 6).toFixed(1)} in.`;
+        errorBox.textContent = `⚠️ Total refractory thickness (${dispThk}) exceeds vessel inner radius (${dispRad}).`;
+        errorBox.classList.remove("hidden");
+        return;
+      }
+
+      const sol = solveApi985Core(geom, dims, linId, thick, eps, t0, wind, t1);
+      if (!sol) return;
+
+      const { t, q, ke, R, hStats, x } = sol;
+      const ts = t[t.length - 1];
+
+      const U_T = isSI ? "°C" : "°F";
+      const U_DT = isSI ? "K" : "°F";
+      const U_LEN = isSI ? "mm" : "in.";
+      const U_Q = isSI ? "W/m²" : "Btu/(h·ft²)";
+      const U_QL = isSI ? "W/m" : "Btu/(h·ft)";
+      const U_H = isSI ? "W/(m²·K)" : "Btu/(h·ft²·°F)";
+      const U_K = isSI ? "W/(m·K)" : "Btu·in/(h·ft²·°F)";
+      const U_R = isSI ? "m²·K/W" : "h·ft²·°F/Btu";
+
+      const T = (f) => isSI ? (f - 32.0) / 1.8 : f;
+      const DT = (f) => isSI ? f / 1.8 : f;
+      const LEN = (inch) => isSI ? inch * IN_MM : inch;
+      const Q = (v) => isSI ? v * BTU_HFT2_TO_WM2 : v;
+      const QL = (v) => isSI ? v * BTU_HFT_TO_WM : v;
+      const HC = (v) => isSI ? v * H_TO_SI : v;
+      const KE = (v) => isSI ? v * K_TO_SI : v;
+      const RR = (v) => isSI ? v * R_TO_SI : v;
+
+      const hero = document.getElementById("heroCard");
+      let grad = "linear-gradient(135deg, #e4572e, #b83a17)";
+      let status = "Hot shell";
+      if (ts < 200) {
+        grad = "linear-gradient(135deg, #2e9e6b, #1f7a52)";
+        status = "Cool shell";
+      } else if (ts < 300) {
+        grad = "linear-gradient(135deg, #e0a21b, #c27d0e)";
+        status = "Warm shell";
+      }
+      hero.style.background = grad;
+      document.getElementById("heroTemp").textContent = `${Math.round(T(ts))} ${U_T}`;
+      const dTAmbient = Math.round(DT(ts - t0));
+      document.getElementById("heroSub").textContent = `${status} · ${dTAmbient >= 0 ? "+" : ""}${dTAmbient} ${U_DT} vs ambient`;
+
+      document.getElementById("kpiQ").textContent = Math.round(Q(q)).toLocaleString();
+      document.getElementById("kpiQUnit").textContent = U_Q;
+
+      if (geom === "hcyl" || geom === "vcyl") {
+        document.getElementById("kpi3Title").textContent = "Heat loss per length";
+        document.getElementById("kpi3Val").textContent = Math.round(QL(Math.PI * dims.D * q)).toLocaleString();
+        document.getElementById("kpi3Unit").textContent = `${U_QL} of length`;
+      } else {
+        document.getElementById("kpi3Title").textContent = "Lining thickness";
+        document.getElementById("kpi3Val").textContent = isSI ? Math.round(LEN(totalThick)) : totalThick.toFixed(1);
+        document.getElementById("kpi3Unit").textContent = isSI ? "mm" : "inches";
+      }
+
+      document.getElementById("kpiH").textContent = HC(hStats.hTot).toFixed(2);
+      document.getElementById("kpiHUnit").textContent = U_H;
+      document.getElementById("kpiHrHc").textContent = `${HC(hStats.hr).toFixed(1)} / ${HC(hStats.hc).toFixed(1)}`;
+      document.getElementById("kpiHrHcUnit").textContent = U_H;
+
+      const layerCards = document.getElementById("layerCards");
+      layerCards.innerHTML = "";
+      const names = layers.map(([n]) => n);
+      layers.forEach(([name], i) => {
+        const drop = t[i] - t[i + 1];
+        const thDisp = isSI ? Math.round(LEN(thick[i])) : thick[i];
+        const keDisp = KE(ke[i]).toFixed(isSI ? 3 : 2);
+        const rDisp = RR(R[i]).toFixed(isSI ? 4 : 3);
+        const rUnitDisp = isSI ? ` ${U_R}` : "";
+
+        const card = document.createElement("div");
+        card.className = "flex gap-2.5 bg-white border border-slate-200/80 rounded-2xl p-3 shadow-xs items-stretch";
+        card.innerHTML = `
+          <div class="w-1.5 rounded-full flex-none" style="background:${PALETTE[i % PALETTE.length]}"></div>
+          <div class="flex-1 min-w-0">
+            <div class="font-bold text-sm text-slate-800">${name} · ${thDisp} ${U_LEN}</div>
+            <div class="text-xs text-slate-600 mt-0.5">${Math.round(T(t[i]))} ${U_T} → ${Math.round(T(t[i + 1]))} ${U_T} &nbsp;<span class="text-slate-400 font-medium">(drop ${Math.round(DT(drop))} ${U_DT})</span></div>
+            <div class="text-[0.72rem] text-slate-500 mt-1">k<sub>eff</sub> ${keDisp} ${U_K} · R ${rDisp}${rUnitDisp}</div>
+          </div>
+        `;
+        layerCards.appendChild(card);
+      });
+
+      const drops = layers.map((_, i) => Math.max(0, t[i] - t[i + 1]));
+      drops.push(Math.max(ts - t0, 0));
+      const dropNames = [...names, "Outside air film"];
+      const dropColors = [...PALETTE.slice(0, names.length), "#9aa5b1"];
+      const totalDrop = drops.reduce((a, b) => a + b, 0) || 1;
+
+      const stackBar = document.getElementById("stackBar");
+      const stackLegend = document.getElementById("stackLegend");
+      stackBar.innerHTML = "";
+      stackLegend.innerHTML = "";
+
+      drops.forEach((dVal, i) => {
+        const pct = (dVal / totalDrop) * 100;
+        const seg = document.createElement("div");
+        seg.style.width = `${pct}%`;
+        seg.style.background = dropColors[i];
+        seg.title = `${dropNames[i]}: ${Math.round(DT(dVal))} ${U_DT}`;
+        stackBar.appendChild(seg);
+
+        const leg = document.createElement("span");
+        leg.className = "inline-flex items-center gap-1.5";
+        leg.innerHTML = `<i class="w-2.5 h-2.5 rounded-xs" style="background:${dropColors[i]}"></i> ${dropNames[i]} ${Math.round(pct)}%`;
+        stackLegend.appendChild(leg);
+      });
+
+      const checkDiv = document.getElementById("benchmarkCheck");
+      if (currentPreset && !currentPreset.custom) {
+        const ok = Math.abs(ts - currentPreset.expTs) <= 2 && Math.abs(q - currentPreset.expQ) <= 3;
+        checkDiv.innerHTML = `${ok ? "✅" : "⚠️"} Table A.8 target: ${Math.round(T(currentPreset.expTs))} ${U_T} · ${Math.round(Q(currentPreset.expQ))} ${U_Q} &nbsp;|&nbsp; calculated: ${Math.round(T(ts))} ${U_T} · ${Math.round(Q(q))}`;
+      } else {
+        checkDiv.innerHTML = "";
+      }
+
+      chartInstance = renderChartOnCanvas("tempChart", chartInstance, x.map(LEN), t.map(T), names, U_LEN, U_T);
+    }
+
+    // ==========================================
+    // 4. DIFFERENTIAL EVOLUTION REVERSE OPTIMIZER
+    // ==========================================
+    window.runReverseOptimization = function() {
+      const geom = document.getElementById("revGeom").value;
+      const stepInc = parseFloat(document.getElementById("revStepInc").value) || 0;
+      const enforceLimits = document.getElementById("revEnforceLimits").checked;
+      const statusBox = document.getElementById("revStatusBox");
+      statusBox.classList.add("hidden");
+
+      const allowedLids = Object.keys(LININGS).filter(k => revStateUS.allowedLinings[k]);
+      if (allowedLids.length === 0) {
+        statusBox.textContent = "⚠️ Please select at least one candidate lining system in Tab 2.";
+        statusBox.classList.remove("hidden");
+        return;
+      }
+
+      const { dims, t1, t0, wind, eps, targetTs, maxTot, minLay, maxLay } = revStateUS;
+      const vesselRad = ["hcyl", "vcyl", "sphere"].includes(geom) ? dims.D * 6.0 - 0.25 : 999.0;
+      const effMaxTot = Math.min(maxTot, vesselRad);
+
+      const archive = new Map();
+
+      function snapAndClamp(vec, lid) {
+        return vec.map((val, i) => {
+          const k = `${lid}_${i}`;
+          if (revStateUS.lockedLayers[k]) {
+            return revStateUS.lockedValues[k];
+          }
+          let v = Math.max(minLay, Math.min(maxLay, val));
+          if (stepInc > 0) {
+            v = Math.round(v / stepInc) * stepInc;
+            v = Math.max(minLay, Math.min(maxLay, v));
+          }
+          return v;
+        });
+      }
+
+      function evaluateCandidate(vec, lid) {
+        const th = snapAndClamp(vec, lid);
+        const key = `${lid}|${th.map(v => v.toFixed(3)).join(",")}`;
+        if (archive.has(key)) return archive.get(key);
+
+        const totTh = th.reduce((a, b) => a + b, 0);
+        if (totTh > vesselRad || totTh <= 0) {
+          const invalid = { valid: false, feasible: false, lid: Number(lid), th, totalThick: totTh };
+          archive.set(key, invalid);
+          return invalid;
+        }
+
+        const solved = solveApi985Core(geom, dims, lid, th, eps, t0, wind, t1);
+        if (!solved) {
+          const invalid = { valid: false, feasible: false, lid: Number(lid), th, totalThick: totTh };
+          archive.set(key, invalid);
+          return invalid;
+        }
+
+        const ts = solved.t[solved.t.length - 1];
+        let tempViol = 0;
+        if (enforceLimits) {
+          const maxTemps = LAYER_MAX_TEMP_F[lid];
+          maxTemps.forEach((mLim, mIdx) => {
+            const layerHot = Math.max(solved.t[mIdx], solved.t[mIdx + 1]);
+            if (layerHot > mLim + 1.0) tempViol += (layerHot - mLim);
+          });
+        }
+        const tsViol = Math.max(0, ts - targetTs);
+        const thViol = Math.max(0, totTh - effMaxTot);
+        const feasible = tsViol === 0 && thViol === 0 && tempViol === 0;
+
+        const res = {
+          valid: true,
+          feasible,
+          lid: Number(lid),
+          liningName: LININGS[lid][0],
+          th,
+          totalThick: totTh,
+          ts,
+          q: solved.q,
+          tProf: solved.t,
+          ke: solved.ke,
+          R: solved.R,
+          hStats: solved.hStats,
+          x: solved.x,
+          tsViol,
+          thViol,
+          tempViol
+        };
+        archive.set(key, res);
+        return res;
+      }
+
+      function fitness(sol, mode) {
+        if (!sol.valid) return 1e12;
+        const pen = sol.tsViol * 5000 + sol.thViol * 8000 + sol.tempViol * 10000;
+        if (pen > 0) return 1e7 + pen + sol.q + sol.totalThick * 50;
+        if (mode === "thermal") return sol.q + 0.01 * sol.totalThick;
+        if (mode === "thickness") return sol.totalThick * 1000 + 0.005 * sol.q;
+        return (sol.q / 600.0) * 0.5 + (sol.totalThick / Math.max(effMaxTot, 1)) * 0.5;
+      }
+
+      const popSize = 22;
+      const generations = 32;
+      const F_mut = 0.65, CR = 0.85;
+
+      allowedLids.forEach(lid => {
+        const nLayers = LININGS[lid][1].length;
+        const freeIdxs = [];
+        for (let i = 0; i < nLayers; i++) {
+          if (!revStateUS.lockedLayers[`${lid}_${i}`]) freeIdxs.push(i);
+        }
+        if (freeIdxs.length === 0) {
+          evaluateCandidate(LININGS[lid][1].map((_, i) => revStateUS.lockedValues[`${lid}_${i}`]), lid);
+          return;
+        }
+
+        ["thickness", "thermal", "balanced"].forEach(mode => {
+          const pop = [];
+          for (let p = 0; p < popSize; p++) {
+            const scale = 0.25 + Math.random() * 0.7;
+            let ind = [];
+            for (let i = 0; i < nLayers; i++) {
+              const k = `${lid}_${i}`;
+              if (revStateUS.lockedLayers[k]) {
+                ind.push(revStateUS.lockedValues[k]);
+              } else if (p === 0) {
+                ind.push(LININGS[lid][1][i][1]);
+              } else {
+                const hiEff = Math.min(maxLay, effMaxTot);
+                ind.push(minLay + Math.random() * Math.max(0.1, hiEff * scale - minLay));
+              }
+            }
+            ind = snapAndClamp(ind, lid);
+            pop.push(ind);
+          }
+
+          let popEvals = pop.map(ind => evaluateCandidate(ind, lid));
+          let popFits = popEvals.map(ev => fitness(ev, mode));
+
+          for (let g = 0; g < generations; g++) {
+            for (let i = 0; i < popSize; i++) {
+              let r1, r2, r3;
+              do { r1 = Math.floor(Math.random() * popSize); } while (r1 === i);
+              do { r2 = Math.floor(Math.random() * popSize); } while (r2 === i || r2 === r1);
+              do { r3 = Math.floor(Math.random() * popSize); } while (r3 === i || r3 === r1 || r3 === r2);
+
+              const jRand = freeIdxs[Math.floor(Math.random() * freeIdxs.length)];
+              let trial = [...pop[i]];
+              freeIdxs.forEach(j => {
+                if (Math.random() < CR || j === jRand) {
+                  trial[j] = pop[r1][j] + F_mut * (pop[r2][j] - pop[r3][j]);
+                }
+              });
+              trial = snapAndClamp(trial, lid);
+              const tot = trial.reduce((a, b) => a + b, 0);
+              if (tot > effMaxTot) {
+                const fixedSum = trial.reduce((acc, v, idx) => acc + (freeIdxs.includes(idx) ? 0 : v), 0);
+                const rem = Math.max(0.1, effMaxTot - fixedSum);
+                const freeSum = freeIdxs.reduce((acc, idx) => acc + trial[idx], 0);
+                if (freeSum > 0) {
+                  freeIdxs.forEach(idx => { trial[idx] = trial[idx] * (rem / freeSum); });
+                  trial = snapAndClamp(trial, lid);
+                }
+              }
+
+              const trialEval = evaluateCandidate(trial, lid);
+              const trialFit = fitness(trialEval, mode);
+              if (trialFit <= popFits[i]) {
+                pop[i] = trial;
+                popEvals[i] = trialEval;
+                popFits[i] = trialFit;
+              }
+            }
+          }
+        });
+      });
+
+      const validSols = Array.from(archive.values()).filter(s => s.valid);
+      const feasibleSols = validSols.filter(s => s.feasible);
+      const pool = feasibleSols.length > 0 ? feasibleSols : validSols;
+
+      if (pool.length === 0) {
+        statusBox.textContent = "⚠️ No valid solutions could be computed for these dimensions.";
+        statusBox.classList.remove("hidden");
+        return;
+      }
+
+      if (feasibleSols.length === 0) {
+        statusBox.textContent = "⚠️ No solution strictly satisfied all constraints (Target Shell Temp / Max Thickness / Material Temp Limits). Showing closest plausible designs.";
+        statusBox.classList.remove("hidden");
+      }
+
+      const qMin = Math.min(...pool.map(s => s.q)), qMax = Math.max(...pool.map(s => s.q));
+      const thMin = Math.min(...pool.map(s => s.totalThick)), thMax = Math.max(...pool.map(s => s.totalThick));
+
+      pool.forEach(s => {
+        const qn = (s.q - qMin) / Math.max(qMax - qMin, 1e-6);
+        const tn = (s.totalThick - thMin) / Math.max(thMax - thMin, 1e-6);
+        const pen = (s.tsViol + s.thViol + s.tempViol) * 10.0;
+        s.balancedScore = Math.sqrt(0.5 * qn * qn + 0.5 * tn * tn) + pen;
+      });
+
+      const cmpBase = (a, b) => (a.feasible === b.feasible ? 0 : a.feasible ? -1 : 1) || ((a.tsViol + a.thViol + a.tempViol) - (b.tsViol + b.thViol + b.tempViol));
+      const bestThermal = [...pool].sort((a, b) => cmpBase(a, b) || (a.q - b.q) || (a.totalThick - b.totalThick))[0];
+      const bestThick = [...pool].sort((a, b) => cmpBase(a, b) || (a.totalThick - b.totalThick) || (a.q - b.q))[0];
+      const bestBalanced = [...pool].sort((a, b) => cmpBase(a, b) || (a.balancedScore - b.balancedScore))[0];
+
+      const sortedPool = [...pool].sort((a, b) => cmpBase(a, b) || (a.balancedScore - b.balancedScore));
+      const distinctRanked = [];
+      for (const cand of sortedPool) {
+        const isDup = distinctRanked.some(ex => ex.lid === cand.lid && ex.th.every((v, i) => Math.abs(v - cand.th[i]) < 0.15));
+        if (!isDup) distinctRanked.push(cand);
+        if (distinctRanked.length >= 20) break;
+      }
+
+      [bestThermal, bestThick, bestBalanced].forEach(win => {
+        if (!distinctRanked.some(d => d.lid === win.lid && d.th.every((v, i) => Math.abs(v - win.th[i]) < 1e-4))) {
+          distinctRanked.unshift(win);
+        }
+      });
+
+      distinctRanked.forEach((s, i) => { s.rank = i + 1; });
+
+      lastRevResults = {
+        categories: { thermal: bestThermal, thickness: bestThick, balanced: bestBalanced },
+        ranked: distinctRanked,
+        t0,
+        targetTs
+      };
+      activeInspectedSol = bestBalanced;
+      renderReverseResultsUI();
+    };
+
+    function renderReverseResultsUI() {
+      if (!lastRevResults) return;
+      document.getElementById("revResultsArea").classList.remove("hidden");
+
+      const { categories, ranked, t0, targetTs } = lastRevResults;
+      const U_T = isSI ? "°C" : "°F";
+      const U_DT = isSI ? "K" : "°F";
+      const U_LEN = isSI ? "mm" : "in.";
+      const U_Q = isSI ? "W/m²" : "Btu/(h·ft²)";
+      const U_K = isSI ? "W/(m·K)" : "Btu·in/(h·ft²·°F)";
+      const U_R = isSI ? "m²·K/W" : "h·ft²·°F/Btu";
+
+      const T = (f) => isSI ? (f - 32.0) / 1.8 : f;
+      const DT = (f) => isSI ? f / 1.8 : f;
+      const LEN = (inch) => isSI ? inch * IN_MM : inch;
+      const Q = (v) => isSI ? v * BTU_HFT2_TO_WM2 : v;
+      const KE = (v) => isSI ? v * K_TO_SI : v;
+      const RR = (v) => isSI ? v * R_TO_SI : v;
+
+      document.getElementById("thRevTot").textContent = `Total (${U_LEN})`;
+      document.getElementById("thRevTs").textContent = `Shell (${U_T})`;
+      document.getElementById("thRevQ").textContent = `Heat Loss (${U_Q})`;
+
+      const catDefs = [
+        { key: "thermal", title: "🔥 Best Thermal Performance", sub: "Minimum Heat Loss", color: "#e4572e" },
+        { key: "thickness", title: "📏 Minimum Thickness", sub: "Thinnest Lining", color: "#2e9e6b" },
+        { key: "balanced", title: "⚖️ Balanced Design", sub: "Optimal Trade-off", color: "#3b82f6" }
+      ];
+
+      const catContainer = document.getElementById("revCategoryCards");
+      catContainer.innerHTML = "";
+      catDefs.forEach(cd => {
+        const sol = categories[cd.key];
+        const lNames = LININGS[sol.lid][1].map(x => x[0]);
+        const thStr = sol.th.map((v, i) => `${isSI ? Math.round(LEN(v)) : v.toFixed(2)} ${U_LEN} (${lNames[i]})`).join(" + ");
+        const card = document.createElement("div");
+        card.className = "bg-white border border-slate-200 rounded-2xl p-3.5 shadow-xs cursor-pointer hover:ring-2 hover:ring-amber-500 transition-all";
+        card.style.borderTop = `4px solid ${cd.color}`;
+        card.innerHTML = `
+          <div class="text-[0.68rem] font-extrabold uppercase tracking-wider" style="color:${cd.color}">${cd.title}</div>
+          <div class="font-black text-sm text-slate-900 mt-0.5">Lining ${sol.lid} · ${isSI ? Math.round(LEN(sol.totalThick)) : sol.totalThick.toFixed(2)} ${U_LEN}</div>
+          <div class="text-xs text-slate-600 mt-1.5 space-y-0.5">
+            <div>Shell Temp: <strong>${T(sol.ts).toFixed(1)} ${U_T}</strong> <span class="text-slate-400">(≤ ${Math.round(T(targetTs))} ${U_T})</span></div>
+            <div>Heat Loss: <strong>${Math.round(Q(sol.q)).toLocaleString()} ${U_Q}</strong></div>
+            <div class="text-[0.7rem] text-slate-500 pt-1">${thStr}</div>
+          </div>
+        `;
+        card.addEventListener("click", () => {
+          activeInspectedSol = sol;
+          renderInspectedSolution(sol, cd.title);
+        });
+        catContainer.appendChild(card);
+      });
+
+      const tbody = document.getElementById("revRankedBody");
+      tbody.innerHTML = "";
+      ranked.forEach(s => {
+        const lNames = LININGS[s.lid][1].map(x => x[0]);
+        const thDesc = s.th.map((v, i) => `${lNames[i]}: ${isSI ? Math.round(LEN(v)) : v.toFixed(2)} ${U_LEN}`).join(" | ");
+        const badges = [];
+        if (s === categories.thermal) badges.push("🔥 Best Thermal");
+        if (s === categories.thickness) badges.push("📏 Min Thick");
+        if (s === categories.balanced) badges.push("⚖️ Balanced");
+        const statusText = badges.length ? badges.join(", ") : (s.feasible ? "✅ Feasible" : "⚠️ Near Target");
+
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-amber-50/60 cursor-pointer transition-colors";
+        tr.innerHTML = `
+          <td class="py-2 px-2 font-bold text-slate-700">#${s.rank}</td>
+          <td class="py-2 px-2 font-semibold text-amber-700">${statusText}</td>
+          <td class="py-2 px-2 font-bold text-slate-800">Lining ${s.lid}</td>
+          <td class="py-2 px-2 text-slate-600">${thDesc}</td>
+          <td class="py-2 px-2 font-bold">${isSI ? Math.round(LEN(s.totalThick)) : s.totalThick.toFixed(2)}</td>
+          <td class="py-2 px-2 font-bold">${T(s.ts).toFixed(1)}</td>
+          <td class="py-2 px-2 font-bold">${Math.round(Q(s.q)).toLocaleString()}</td>
+        `;
+        tr.addEventListener("click", () => {
+          activeInspectedSol = s;
+          renderInspectedSolution(s, `Rank #${s.rank} Solution`);
+        });
+        tbody.appendChild(tr);
+      });
+
+      renderInspectedSolution(activeInspectedSol || categories.balanced, "Selected Optimal Design");
+
+      function renderInspectedSolution(sol, labelBadge) {
+        const lNames = LININGS[sol.lid][1].map(x => x[0]);
+        document.getElementById("revInspectBadge").textContent = labelBadge;
+        document.getElementById("revInspectTitle").textContent = LININGS[sol.lid][0];
+        document.getElementById("revInspectTs").textContent = `${T(sol.ts).toFixed(1)} ${U_T}`;
+        document.getElementById("revInspectQ").textContent = `${Math.round(Q(sol.q)).toLocaleString()} ${U_Q}`;
+        document.getElementById("revInspectTh").textContent = `${isSI ? Math.round(LEN(sol.totalThick)) : sol.totalThick.toFixed(2)} ${U_LEN}`;
+
+        revChartInstance = renderChartOnCanvas("revTempChart", revChartInstance, sol.x.map(LEN), sol.tProf.map(T), lNames, U_LEN, U_T);
+
+        const revLayerCards = document.getElementById("revLayerCards");
+        revLayerCards.innerHTML = "";
+        lNames.forEach((name, i) => {
+          const drop = sol.tProf[i] - sol.tProf[i + 1];
+          const thDisp = isSI ? Math.round(LEN(sol.th[i])) : sol.th[i].toFixed(2);
+          const keDisp = KE(sol.ke[i]).toFixed(isSI ? 3 : 2);
+          const rDisp = RR(sol.R[i]).toFixed(isSI ? 4 : 3);
+          const card = document.createElement("div");
+          card.className = "flex gap-2.5 bg-slate-50 border border-slate-200/80 rounded-xl p-2.5 items-stretch";
+          card.innerHTML = `
+            <div class="w-1.5 rounded-full flex-none" style="background:${PALETTE[i % PALETTE.length]}"></div>
+            <div class="flex-1">
+              <div class="font-bold text-xs md:text-sm text-slate-800">${name} · ${thDisp} ${U_LEN}</div>
+              <div class="text-xs text-slate-600">${Math.round(T(sol.tProf[i]))} ${U_T} → ${Math.round(T(sol.tProf[i + 1]))} ${U_T} (drop ${Math.round(DT(drop))} ${U_DT})</div>
+              <div class="text-[0.7rem] text-slate-500">k<sub>eff</sub> ${keDisp} ${U_K} · R ${rDisp} ${isSI ? U_R : ""}</div>
+            </div>
+          `;
+          revLayerCards.appendChild(card);
+        });
+
+        const drops = lNames.map((_, i) => Math.max(0, sol.tProf[i] - sol.tProf[i + 1]));
+        drops.push(Math.max(sol.ts - t0, 0));
+        const dropNames = [...lNames, "Outside air film"];
+        const dropColors = [...PALETTE.slice(0, lNames.length), "#9aa5b1"];
+        const totalDrop = drops.reduce((a, b) => a + b, 0) || 1;
+
+        const revStackBar = document.getElementById("revStackBar");
+        const revStackLegend = document.getElementById("revStackLegend");
+        revStackBar.innerHTML = "";
+        revStackLegend.innerHTML = "";
+        drops.forEach((dVal, i) => {
+          const pct = (dVal / totalDrop) * 100;
+          const seg = document.createElement("div");
+          seg.style.width = `${pct}%`;
+          seg.style.background = dropColors[i];
+          revStackBar.appendChild(seg);
+
+          const leg = document.createElement("span");
+          leg.className = "inline-flex items-center gap-1.5";
+          leg.innerHTML = `<i class="w-2.5 h-2.5 rounded-xs" style="background:${dropColors[i]}"></i> ${dropNames[i]} ${Math.round(pct)}%`;
+          revStackLegend.appendChild(leg);
+        });
+      }
+    }
+
+    // ==========================================
+    // 5. EVENT LISTENERS
+    // ==========================================
+    siToggle.addEventListener("change", (e) => {
+      isSI = e.target.checked;
+      syncAllInputsUI();
+      calculate();
+      if (lastRevResults) renderReverseResultsUI();
+    });
+
+    presetSelect.addEventListener("change", (e) => loadPreset(parseInt(e.target.value, 10)));
+
+    geomSelect.addEventListener("change", () => {
+      renderDimInputs();
+      calculate();
+    });
+
+    liningSelect.addEventListener("change", () => {
+      const [, layers] = LININGS[liningSelect.value];
+      stateUS.thick = layers.map(l => l[1]);
+      renderLayerInputs();
+      calculate();
+    });
+
+    document.getElementById("t1").addEventListener("input", (e) => {
+      const raw = parseFloat(e.target.value);
+      if (!isNaN(raw)) { stateUS.t1 = isSI ? toUS.temp(raw) : raw; calculate(); }
+    });
+    document.getElementById("t0").addEventListener("input", (e) => {
+      const raw = parseFloat(e.target.value);
+      if (!isNaN(raw)) { stateUS.t0 = isSI ? toUS.temp(raw) : raw; calculate(); }
+    });
+    document.getElementById("wind").addEventListener("input", (e) => {
+      const raw = parseFloat(e.target.value);
+      if (!isNaN(raw)) { stateUS.wind = isSI ? toUS.wind(raw) : raw; calculate(); }
+    });
+    document.getElementById("eps").addEventListener("input", (e) => {
+      const raw = parseFloat(e.target.value);
+      if (!isNaN(raw)) { stateUS.eps = raw; calculate(); }
+    });
+
+    // Reverse Designer Input Listeners
+    document.getElementById("revGeom").addEventListener("change", renderRevInputs);
+    document.getElementById("revTargetTs").addEventListener("input", (e) => {
+      const v = parseFloat(e.target.value);
+      if (!isNaN(v)) revStateUS.targetTs = isSI ? toUS.temp(v) : v;
+    });
+    document.getElementById("revT1").addEventListener("input", (e) => {
+      const v = parseFloat(e.target.value);
+      if (!isNaN(v)) revStateUS.t1 = isSI ? toUS.temp(v) : v;
+    });
+    document.getElementById("revT0").addEventListener("input", (e) => {
+      const v = parseFloat(e.target.value);
+      if (!isNaN(v)) revStateUS.t0 = isSI ? toUS.temp(v) : v;
+    });
+    document.getElementById("revWind").addEventListener("input", (e) => {
+      const v = parseFloat(e.target.value);
+      if (!isNaN(v)) revStateUS.wind = isSI ? toUS.wind(v) : v;
+    });
+    document.getElementById("revEps").addEventListener("input", (e) => {
+      const v = parseFloat(e.target.value);
+      if (!isNaN(v)) revStateUS.eps = v;
+    });
+    document.getElementById("revMaxTot").addEventListener("input", (e) => {
+      const v = parseFloat(e.target.value);
+      if (!isNaN(v)) revStateUS.maxTot = isSI ? toUS.thk(v) : v;
+    });
+    document.getElementById("revMinLay").addEventListener("input", (e) => {
+      const v = parseFloat(e.target.value);
+      if (!isNaN(v)) revStateUS.minLay = isSI ? toUS.thk(v) : v;
+    });
+    document.getElementById("revMaxLay").addEventListener("input", (e) => {
+      const v = parseFloat(e.target.value);
+      if (!isNaN(v)) revStateUS.maxLay = isSI ? toUS.thk(v) : v;
+    });
+
+    // Initialize with Case 1
+    presetSelect.value = "1";
+    loadPreset(1);
+  </script>
+</body>
+</html>
